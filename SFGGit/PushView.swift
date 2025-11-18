@@ -239,27 +239,9 @@ struct PushView: View {
         }
 
         isCommitting = true
-        pushStatus = "Starting commit process..."
+        pushStatus = "Committing changes..."
 
         Task {
-            await MainActor.run {
-                self.pushStatus = "Staging all changes..."
-            }
-
-            let stageSuccess = gitClient.stageAllChanges()
-
-            if !stageSuccess {
-                await MainActor.run {
-                    self.pushStatus = "Failed to stage changes. Check git status."
-                    self.isCommitting = false
-                }
-                return
-            }
-
-            await MainActor.run {
-                self.pushStatus = "Changes staged successfully. Committing..."
-            }
-
             let commitSuccess = gitClient.commit(title: prData.title, message: prData.message)
 
             await MainActor.run {
@@ -280,27 +262,9 @@ struct PushView: View {
         }
 
         isPushing = true
-        pushStatus = "Starting push process..."
+        pushStatus = "Committing and pushing changes..."
 
         Task {
-            await MainActor.run {
-                self.pushStatus = "Staging all changes..."
-            }
-
-            let stageSuccess = gitClient.stageAllChanges()
-
-            if !stageSuccess {
-                await MainActor.run {
-                    self.pushStatus = "Failed to stage changes. Check git status."
-                    self.isPushing = false
-                }
-                return
-            }
-
-            await MainActor.run {
-                self.pushStatus = "Changes staged successfully. Committing and pushing..."
-            }
-
             let pushSuccess = gitClient.commitAndPush(title: prData.title, message: prData.message)
 
             await MainActor.run {

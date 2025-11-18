@@ -211,4 +211,237 @@ class GitClient: ObservableObject {
         
         return true
     }
+
+    func getDiffAgainstBranch(targetBranch: String) -> (success: Bool, diff: String) {
+        guard !repositoryPath.isEmpty else {
+            return (false, "Repository path not configured")
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.arguments = ["diff", targetBranch + "...HEAD"]
+        process.currentDirectoryURL = URL(fileURLWithPath: repositoryPath)
+
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+
+            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+
+            let output = String(data: outputData, encoding: .utf8) ?? ""
+            let error = String(data: errorData, encoding: .utf8) ?? ""
+
+            if process.terminationStatus == 0 {
+                return (true, output)
+            } else {
+                return (false, error.isEmpty ? "Unknown error getting diff" : error)
+            }
+        } catch {
+            return (false, "Failed to execute git diff: \(error.localizedDescription)")
+        }
+    }
+
+    func getDiffAgainstBranchWithGH(targetBranch: String, currentBranch: String? = nil) -> (success: Bool, diff: String) {
+        guard !repositoryPath.isEmpty else {
+            return (false, "Repository path not configured")
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/gh")
+
+        var arguments = ["pr", "diff"]
+
+        if let current = currentBranch {
+            arguments.append("--name-only")
+            arguments.append(current)
+        }
+
+        process.arguments = arguments
+        process.currentDirectoryURL = URL(fileURLWithPath: repositoryPath)
+
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+
+            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+
+            let output = String(data: outputData, encoding: .utf8) ?? ""
+            let error = String(data: errorData, encoding: .utf8) ?? ""
+
+            if process.terminationStatus == 0 {
+                return (true, output)
+            } else {
+                // If gh pr diff fails, fallback to git diff
+                return getDiffAgainstBranch(targetBranch: targetBranch)
+            }
+        } catch {
+            // If gh CLI fails, fallback to git diff
+            return getDiffAgainstBranch(targetBranch: targetBranch)
+        }
+    }
+
+    func createPullRequest(branchName: String, title: String, body: String) -> (success: Bool, output: String) {
+        guard !repositoryPath.isEmpty else {
+            return (false, "Repository path not configured")
+        }
+
+        // First, check if branch exists and switch to it
+        let checkoutResult = checkoutBranch(branchName: branchName)
+        if !checkoutResult.success {
+            return (false, "Failed to checkout branch '\(branchName)': \(checkoutResult.output)")
+        }
+
+        // Push the branch to remote if not already pushed
+        let pushResult = pushBranch(branchName: branchName)
+        if !pushResult.success {
+            return (false, "Failed to push branch '\(branchName)': \(pushResult.output)")
+        }
+
+        // Create PR using gh CLI
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/gh")
+        process.arguments = [
+            "pr", "create",
+            "--title", title,
+            "--body", body,
+            "--head", branchName
+        ]
+        process.currentDirectoryURL = URL(fileURLWithPath: repositoryPath)
+
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+
+            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+
+            let output = String(data: outputData, encoding: .utf8) ?? ""
+            let error = String(data: errorData, encoding: .utf8) ?? ""
+
+            if process.terminationStatus == 0 {
+                return (true, output.trimmingCharacters(in: .whitespacesAndNewlines))
+            } else {
+                return (false, error.isEmpty ? "Unknown error creating PR" : error)
+            }
+        } catch {
+            return (false, "Failed to execute gh CLI: \(error.localizedDescription)")
+        }
+    }
+
+    private func checkoutBranch(branchName: String) -> (success: Bool, output: String) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.arguments = ["checkout", "-b", branchName]
+        process.currentDirectoryURL = URL(fileURLWithPath: repositoryPath)
+
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+
+            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+
+            let output = String(data: outputData, encoding: .utf8) ?? ""
+            let error = String(data: errorData, encoding: .utf8) ?? ""
+
+            // Branch might already exist, try to switch to it
+            if process.terminationStatus != 0 {
+                let switchProcess = Process()
+                switchProcess.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+                switchProcess.arguments = ["checkout", branchName]
+                switchProcess.currentDirectoryURL = URL(fileURLWithPath: repositoryPath)
+
+                let switchOutputPipe = Pipe()
+                let switchErrorPipe = Pipe()
+
+                switchProcess.standardOutput = switchOutputPipe
+                switchProcess.standardError = switchErrorPipe
+
+                try switchProcess.run()
+                switchProcess.waitUntilExit()
+
+                let switchOutput = String(data: switchOutputPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+                let switchError = String(data: switchErrorPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+
+                if switchProcess.terminationStatus == 0 {
+                    return (true, switchOutput)
+                } else {
+                    return (false, switchError.isEmpty ? error : switchError)
+                }
+            }
+
+            return (true, output)
+        } catch {
+            return (false, "Failed to checkout branch: \(error.localizedDescription)")
+        }
+    }
+
+    private func pushBranch(branchName: String) -> (success: Bool, output: String) {
+        guard !sshKeyPath.isEmpty else {
+            return (false, "SSH key path not configured")
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+
+        // Environment with custom SSH command
+        var env = ProcessInfo.processInfo.environment
+        env["GIT_SSH_COMMAND"] = #"ssh -i "# + sshKeyPath + #" -o IdentitiesOnly=yes"#
+        process.environment = env
+        process.currentDirectoryURL = URL(fileURLWithPath: repositoryPath)
+
+        // Arguments: git push -u origin branchName
+        process.arguments = ["git", "push", "-u", "origin", branchName]
+
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+
+            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+
+            let output = String(data: outputData, encoding: .utf8) ?? ""
+            let error = String(data: errorData, encoding: .utf8) ?? ""
+
+            if process.terminationStatus == 0 {
+                return (true, output)
+            } else {
+                return (false, error.isEmpty ? "Unknown error pushing branch" : error)
+            }
+        } catch {
+            return (false, "Failed to push branch: \(error.localizedDescription)")
+        }
+    }
 }

@@ -40,7 +40,7 @@ struct SettingsView: View {
                             .buttonStyle(BorderedButtonStyle())
                         }
                     }
-
+                    
                     VStack(alignment: .leading, spacing: 5) {
                         Text("SSH Key Path:")
                             .fontWeight(.medium)
@@ -53,7 +53,7 @@ struct SettingsView: View {
                             .buttonStyle(BorderedButtonStyle())
                         }
                     }
-
+                    
                     VStack(alignment: .leading, spacing: 5) {
                         Text("Claude API Key:")
                             .fontWeight(.medium)
@@ -63,13 +63,6 @@ struct SettingsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                }
-                .padding(10)
-            }
-
-            GroupBox("General") {
-                VStack(alignment: .leading, spacing: 10) {
-                    Toggle("Enable SFGGit", isOn: $isEnabled)
                 }
                 .padding(10)
             }

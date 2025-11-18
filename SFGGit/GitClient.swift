@@ -296,77 +296,32 @@ class GitClient: ObservableObject {
         }
     }
 
-    func getDiffAgainstBranchWithGH(targetBranch: String, currentBranch: String? = nil) -> (success: Bool, diff: String) {
-        guard !repositoryPath.isEmpty else {
-            return (false, "Repository path not configured")
-        }
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/gh")
-
-        var arguments = ["pr", "diff"]
-
-        if let current = currentBranch {
-            arguments.append("--name-only")
-            arguments.append(current)
-        }
-
-        process.arguments = arguments
-        process.currentDirectoryURL = URL(fileURLWithPath: repositoryPath)
-
-        let outputPipe = Pipe()
-        let errorPipe = Pipe()
-
-        process.standardOutput = outputPipe
-        process.standardError = errorPipe
-
-        do {
-            try process.run()
-            process.waitUntilExit()
-
-            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-
-            let output = String(data: outputData, encoding: .utf8) ?? ""
-            let error = String(data: errorData, encoding: .utf8) ?? ""
-
-            if process.terminationStatus == 0 {
-                return (true, output)
-            } else {
-                // If gh pr diff fails, fallback to git diff
-                return getDiffAgainstBranch(targetBranch: targetBranch)
-            }
-        } catch {
-            // If gh CLI fails, fallback to git diff
-            return getDiffAgainstBranch(targetBranch: targetBranch)
-        }
-    }
-
     func createPullRequest(branchName: String, title: String, body: String) -> (success: Bool, output: String) {
         guard !repositoryPath.isEmpty else {
             return (false, "Repository path not configured")
         }
-
-        // First, check if branch exists and switch to it
-        let checkoutResult = checkoutBranch(branchName: branchName)
-        if !checkoutResult.success {
-            return (false, "Failed to checkout branch '\(branchName)': \(checkoutResult.output)")
+        
+        guard let currentBranchName = getCurrentBranch() else {
+            return (false, "Failed to get current branch")
         }
-
+        
         // Push the branch to remote if not already pushed
         let pushResult = pushBranch(branchName: branchName)
         if !pushResult.success {
             return (false, "Failed to push branch '\(branchName)': \(pushResult.output)")
         }
-
+        
+        let ghURL = "/opt/homebrew/bin/gh" // TODO: hardcoded
         // Create PR using gh CLI
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/gh")
+        process.executableURL = URL(fileURLWithPath: ghURL)
         process.arguments = [
             "pr", "create",
             "--title", title,
             "--body", body,
-            "--head", branchName
+            "--base", branchName,
+            "--head", currentBranchName,
+            "--web"
         ]
         process.currentDirectoryURL = URL(fileURLWithPath: repositoryPath)
 
@@ -490,6 +445,37 @@ class GitClient: ObservableObject {
             }
         } catch {
             return (false, "Failed to push branch: \(error.localizedDescription)")
+        }
+    }
+    
+    func findExecutable(name: String) -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/which")
+        process.arguments = [name]
+
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+
+            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: outputData, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if process.terminationStatus == 0 && !(output?.isEmpty ?? true) {
+                return output
+            } else {
+                print("Executable '\(name)' not found")
+                return nil
+            }
+        } catch {
+            print("Failed to find executable '\(name)': \(error.localizedDescription)")
+            return nil
         }
     }
 }

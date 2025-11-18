@@ -87,18 +87,17 @@ class GitClient: ObservableObject {
         }
     }
 
-    func commitAndPush(title: String, message: String) -> Bool {
+    func commit(title: String, message: String) -> Bool {
         guard !repositoryPath.isEmpty else {
             print("Repository path not configured")
             return false
         }
-        
-        // First commit the changes
+
+        // Commit the changes
         let commitProcess = Process()
         commitProcess.executableURL = URL(fileURLWithPath: "/usr/bin/git")
         commitProcess.arguments = ["commit", "-m", title, "-m", message]
         commitProcess.currentDirectoryURL = URL(fileURLWithPath: repositoryPath)
-
 
         let commitErrorPipe = Pipe()
         commitProcess.standardError = commitErrorPipe
@@ -115,8 +114,16 @@ class GitClient: ObservableObject {
             }
 
             print("Successfully committed changes")
+            return true
         } catch {
             print("Failed to execute git commit: \(error)")
+            return false
+        }
+    }
+
+    func commitAndPush(title: String, message: String) -> Bool {
+        // First commit the changes
+        guard commit(title: title, message: message) else {
             return false
         }
 

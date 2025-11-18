@@ -17,6 +17,7 @@ struct PushView: View {
     @State private var isLoading = false
     @State private var isGeneratingMessage = false
     @State private var isPushing = false
+    @State private var isCommitting = false
     @State private var prData: PRData?
 
     var body: some View {
@@ -85,11 +86,27 @@ struct PushView: View {
             GroupBox("Commit Message") {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
+                        Button("Commit") {
+                            commitChanges()
+                        }
+                        .buttonStyle(BorderedButtonStyle())
+                        .disabled(commitMessage.isEmpty || isCommitting || isPushing || prData == nil)
+
                         Button("Push Changes") {
                             pushChanges()
                         }
                         .buttonStyle(BorderedProminentButtonStyle())
-                        .disabled(commitMessage.isEmpty || isPushing || prData == nil)
+                        .disabled(commitMessage.isEmpty || isPushing || isCommitting || prData == nil)
+
+                        if isCommitting {
+                            HStack {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                Text("Committing...")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
 
                         if isPushing {
                             HStack {
@@ -200,6 +217,47 @@ struct PushView: View {
                     self.commitMessage = "Failed to generate the message."
                     self.isGeneratingMessage = false
                 }
+            }
+        }
+    }
+
+    private func commitChanges() {
+        guard let prData = prData else {
+            pushStatus = "Error: No commit message data available"
+            return
+        }
+
+        isCommitting = true
+        pushStatus = "Starting commit process..."
+
+        Task {
+            await MainActor.run {
+                self.pushStatus = "Staging all changes..."
+            }
+
+            let stageSuccess = gitClient.stageAllChanges()
+
+            if !stageSuccess {
+                await MainActor.run {
+                    self.pushStatus = "Failed to stage changes. Check git status."
+                    self.isCommitting = false
+                }
+                return
+            }
+
+            await MainActor.run {
+                self.pushStatus = "Changes staged successfully. Committing..."
+            }
+
+            let commitSuccess = gitClient.commit(title: prData.title, message: prData.message)
+
+            await MainActor.run {
+                if commitSuccess {
+                    self.pushStatus = "✅ Successfully committed changes locally!\n\nTitle: \(prData.title)"
+                } else {
+                    self.pushStatus = "❌ Failed to commit changes. Check git configuration."
+                }
+                self.isCommitting = false
             }
         }
     }

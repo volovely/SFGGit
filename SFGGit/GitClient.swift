@@ -173,12 +173,18 @@ class GitClient: ObservableObject {
             print("SSH key path not configured")
             return false
         }
-        
+
         guard !repositoryPath.isEmpty else {
             print("Repository path not configured")
             return false
         }
-        
+
+        // Get current branch name
+        guard let currentBranch = getCurrentBranch() else {
+            print("Failed to get current branch name")
+            return false
+        }
+
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
 
@@ -188,8 +194,8 @@ class GitClient: ObservableObject {
         process.environment = env
         process.currentDirectoryURL = URL(fileURLWithPath: repositoryPath)
 
-        // Arguments: git push origin
-        process.arguments = ["git", "push", "origin"]
+        // Arguments: git push -u origin currentBranch (set upstream and push)
+        process.arguments = ["git", "push", "-u", "origin", currentBranch]
 
         // Capture output
         let pipe = Pipe()
@@ -201,15 +207,57 @@ class GitClient: ObservableObject {
             process.waitUntilExit()
 
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            if let output = String(data: data, encoding: .utf8) {
+            let output = String(data: data, encoding: .utf8) ?? ""
+
+            if process.terminationStatus == 0 {
+                print("Successfully pushed branch '\(currentBranch)' to origin")
                 print(output)
+                return true
+            } else {
+                print("Failed to push branch '\(currentBranch)': \(output)")
+                return false
             }
         } catch {
             print("Failed to run process:", error)
             return false
         }
-        
-        return true
+    }
+
+    private func getCurrentBranch() -> String? {
+        guard !repositoryPath.isEmpty else {
+            return nil
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.arguments = ["branch", "--show-current"]
+        process.currentDirectoryURL = URL(fileURLWithPath: repositoryPath)
+
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+
+            if process.terminationStatus == 0 {
+                let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+                let branchName = String(data: outputData, encoding: .utf8)?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                return branchName?.isEmpty == false ? branchName : nil
+            } else {
+                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                let error = String(data: errorData, encoding: .utf8) ?? "Unknown error"
+                print("Failed to get current branch: \(error)")
+                return nil
+            }
+        } catch {
+            print("Failed to execute git branch command: \(error)")
+            return nil
+        }
     }
 
     func getDiffAgainstBranch(targetBranch: String) -> (success: Bool, diff: String) {

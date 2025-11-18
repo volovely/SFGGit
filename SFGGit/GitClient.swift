@@ -130,6 +130,11 @@ class GitClient: ObservableObject {
             return false
         }
         
+        guard !repositoryPath.isEmpty else {
+            print("Repository path not configured")
+            return false
+        }
+        
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
 
@@ -137,6 +142,7 @@ class GitClient: ObservableObject {
         var env = ProcessInfo.processInfo.environment
         env["GIT_SSH_COMMAND"] = #"ssh -i "# + sshKeyPath + #" -o IdentitiesOnly=yes"#
         process.environment = env
+        process.currentDirectoryURL = URL(fileURLWithPath: repositoryPath)
 
         // Arguments: git push origin
         process.arguments = ["git", "push", "origin"]

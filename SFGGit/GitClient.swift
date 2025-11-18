@@ -25,7 +25,7 @@ class GitClient: ObservableObject {
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        process.arguments = ["diff",]
+        process.arguments = ["diff"]
         process.currentDirectoryURL = URL(fileURLWithPath: repositoryPath)
 
         let outputPipe = Pipe()

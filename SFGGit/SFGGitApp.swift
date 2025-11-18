@@ -6,9 +6,24 @@
 //
 
 import SwiftUI
+import AppKit
+
+class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Close only specific app windows at startup, but preserve menu bar
+        for window in NSApplication.shared.windows {
+            // Only close windows that are not system windows (menu bar, dock, etc.)
+            if window.isVisible && window.canBecomeMain && window.title != "" {
+                window.close()
+            }
+        }
+    }
+}
 
 @main
 struct SFGGitApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     var body: some Scene {
         MenuBarExtra("SFGGit", systemImage: "arrow.trianglehead.branch") {
             MenuBarView()

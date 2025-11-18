@@ -51,11 +51,19 @@ struct MenuBarView: View {
         VStack {
             Button("Push") {
                 openWindow(id: "push")
+                // Activate the app to bring window to front
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    NSApplication.shared.activate(ignoringOtherApps: true)
+                }
             }
             .keyboardShortcut("p", modifiers: [.command])
 
             Button("Settings") {
                 openWindow(id: "settings")
+                // Activate the app to bring window to front
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    NSApplication.shared.activate(ignoringOtherApps: true)
+                }
             }
             .keyboardShortcut(",", modifiers: [.command])
 

@@ -50,7 +50,7 @@ class ClaudeClient: ObservableObject {
         }
         
         if diff.count > 5000 {
-            diff = String(diff.prefix(1000))
+            diff = String(diff.prefix(5000))
         }
 
         let systemPrompt = """
@@ -59,7 +59,7 @@ class ClaudeClient: ObservableObject {
         Rules for PR title:
         - Use imperative mood (e.g., "Add feature" not "Added feature")
         - Keep under 60 characters
-        - Use conventional commit types: feat, fix, docs, style, refactor, test, chore
+        - Use conventional commit types: feature, fix, docs, style, refactor, test
         - Be specific and descriptive
 
         Rules for PR message:

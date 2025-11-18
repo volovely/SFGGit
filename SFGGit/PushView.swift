@@ -60,7 +60,7 @@ struct PushView: View {
 
                     ScrollView {
                         if diffContent.isEmpty {
-                            Text("No staged changes found. Use 'git add' to stage files.")
+                            Text("No changes to commit. All files are up to date.")
                                 .foregroundColor(.secondary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding()
@@ -192,10 +192,21 @@ struct PushView: View {
     private func loadDiff() {
         isLoading = true
         DispatchQueue.global(qos: .userInitiated).async {
-            let diff = gitClient.getDiff()
-            DispatchQueue.main.async {
-                self.diffContent = diff ?? ""
-                self.isLoading = false
+            // First stage all changes
+            let stageSuccess = self.gitClient.stageAllChanges()
+
+            if stageSuccess {
+                // Then get staged diff
+                let diff = self.gitClient.getStagedDiff()
+                DispatchQueue.main.async {
+                    self.diffContent = diff ?? ""
+                    self.isLoading = false
+                }
+            } else {
+                DispatchQueue.main.async {
+                    self.diffContent = "Failed to stage changes. Please check git status."
+                    self.isLoading = false
+                }
             }
         }
     }

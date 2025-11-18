@@ -54,6 +54,43 @@ class GitClient: ObservableObject {
         }
     }
 
+    func getStagedDiff() -> String? {
+        guard !repositoryPath.isEmpty else {
+            print("Repository path not configured")
+            return nil
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.arguments = ["diff", "--staged"]
+        process.currentDirectoryURL = URL(fileURLWithPath: repositoryPath)
+
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+
+            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+
+            if process.terminationStatus != 0 {
+                let errorString = String(data: errorData, encoding: .utf8) ?? "Unknown error"
+                print("Git diff --staged failed with error: \(errorString)")
+                return nil
+            }
+
+            return String(data: outputData, encoding: .utf8)
+        } catch {
+            print("Failed to execute git diff --staged: \(error)")
+            return nil
+        }
+    }
+
     func stageAllChanges() -> Bool {
         guard !repositoryPath.isEmpty else {
             print("Repository path not configured")

@@ -36,6 +36,12 @@ struct SFGGitApp: App {
         .windowResizability(.contentSize)
         .defaultPosition(.center)
 
+        Window("Create Pull Request", id: "pullrequest") {
+            PullRequestView()
+        }
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
+
         Window("Settings", id: "settings") {
             SettingsView()
         }
@@ -57,6 +63,15 @@ struct MenuBarView: View {
                 }
             }
             .keyboardShortcut("p", modifiers: [.command])
+
+            Button("Open PR") {
+                openWindow(id: "pullrequest")
+                // Activate the app to bring window to front
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    NSApplication.shared.activate(ignoringOtherApps: true)
+                }
+            }
+            .keyboardShortcut("r", modifiers: [.command])
 
             Button("Settings") {
                 openWindow(id: "settings")

@@ -92,11 +92,6 @@ class GitClient: ObservableObject {
             print("Repository path not configured")
             return false
         }
-
-        guard !sshKeyPath.isEmpty else {
-            print("SSH key path not configured")
-            return false
-        }
         
         // First commit the changes
         let commitProcess = Process()
@@ -126,32 +121,44 @@ class GitClient: ObservableObject {
         }
 
         // Then push to remote
-        let pushProcess = Process()
-        pushProcess.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        pushProcess.arguments = ["push", "origin"]
-        pushProcess.currentDirectoryURL = URL(fileURLWithPath: repositoryPath)
-        var environment = ProcessInfo.processInfo.environment
-        environment["GIT_SSH_COMMAND"] = "ssh -i \(sshKeyPath) -o IdentitiesOnly=yes"
-
-        let pushErrorPipe = Pipe()
-        pushProcess.standardError = pushErrorPipe
-
-        do {
-            try pushProcess.run()
-            pushProcess.waitUntilExit()
-
-            if pushProcess.terminationStatus != 0 {
-                let errorData = pushErrorPipe.fileHandleForReading.readDataToEndOfFile()
-                let errorString = String(data: errorData, encoding: .utf8) ?? "Unknown error"
-                print("Git push failed with error: \(errorString)")
-                return false
-            }
-
-            print("Successfully pushed changes")
-            return true
-        } catch {
-            print("Failed to execute git push: \(error)")
+        return gitPushWithSSHKey()
+    }
+    
+    func gitPushWithSSHKey() -> Bool {
+        guard !sshKeyPath.isEmpty else {
+            print("SSH key path not configured")
             return false
         }
+        
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+
+        // Environment with custom SSH command
+        var env = ProcessInfo.processInfo.environment
+        env["GIT_SSH_COMMAND"] = #"ssh -i "# + sshKeyPath + #" -o IdentitiesOnly=yes"#
+        process.environment = env
+
+        // Arguments: git push origin
+        process.arguments = ["git", "push", "origin"]
+
+        // Capture output
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            if let output = String(data: data, encoding: .utf8) {
+                print(output)
+            }
+        } catch {
+            print("Failed to run process:", error)
+            return false
+        }
+        
+        return true
     }
 }

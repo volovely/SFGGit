@@ -69,7 +69,7 @@ struct SettingsView: View {
 
             GroupBox("About") {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("SFGGit")
+                    Text("Gitee")
                         .font(.headline)
                     Text("Version 1.0")
                         .foregroundColor(.secondary)

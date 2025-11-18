@@ -19,6 +19,30 @@ struct PushView: View {
     @State private var isPushing = false
     @State private var isCommitting = false
     @State private var prData: PRData?
+    @State private var empoweringMessage = ""
+
+    private let empoweringMessages = [
+        "🎭 Well, well... another commit from the code wizard. Try not to break the internet this time!",
+        "🤖 Beep boop! AI analysis complete: You're still better than most developers I know.",
+        "🐛 Your code is so clean, even the bugs are impressed and refuse to move in.",
+        "☕ This commit is smoother than your morning coffee. And that's saying something!",
+        "🎪 Ladies and gentlemen, witness the spectacular art of turning caffeine into code!",
+        "🧙‍♂️ Abracadabra! You've magically transformed chaos into working software again.",
+        "🎯 Your precision is scary good. Are you sure you're human and not a very polite robot?",
+        "🔥 This code is so hot, Stack Overflow is taking notes for their next tutorial.",
+        "🦄 Your code is rarer than a bug-free software release. Legendary stuff!",
+        "🎨 Picasso painted the Mona Lisa. You just painted this beautiful mess of logic.",
+        "🚀 NASA called - they want to hire you to debug their rocket software.",
+        "🍕 Your code is like pizza: even when it's bad, it's still pretty good.",
+        "🎮 Achievement unlocked: 'Made code work on first try' - Difficulty: Mythical",
+        "🔮 I predict great things for this commit... or at least fewer angry user emails.",
+        "🎪 Step right up! Watch this developer turn coffee and anxiety into working features!",
+        "🦸‍♂️ Not all heroes wear capes. Some just write really good commit messages.",
+        "📚 Shakespeare wrote sonnets. You write functions. Both are poetry, really.",
+        "🎸 Your code has more rhythm than most musicians. Rock on, code maestro!",
+        "🍀 Either you're really skilled or really lucky. Let's go with skilled for your ego.",
+        "🎯 Bullseye! Your code hit the target so well, even the QA team is speechless."
+    ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -146,6 +170,26 @@ struct PushView: View {
                 .padding(10)
             }
 
+            if !empoweringMessage.isEmpty {
+                GroupBox("One line commit description") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(empoweringMessage)
+                            .font(.system(.body, design: .default))
+                            .multilineTextAlignment(.leading)
+                            .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                            )
+                    }
+                    .padding(10)
+                }
+            }
+
             GroupBox("Push Status") {
                 VStack(alignment: .leading, spacing: 10) {
                     ScrollView {
@@ -183,7 +227,8 @@ struct PushView: View {
             .padding(.top, 10)
         }
         .padding(20)
-        .frame(minWidth: 600, minHeight: 650)
+        .frame(minWidth: 600, minHeight: empoweringMessage.isEmpty ? 650 : 750)
+        .animation(.easeInOut(duration: 0.3), value: empoweringMessage.isEmpty)
         .onAppear {
             loadDiff()
         }
@@ -220,12 +265,14 @@ struct PushView: View {
                 await MainActor.run {
                     self.prData = response
                     self.commitMessage = "Title: \(response.title)\n\nMessage: \(response.message)"
+                    self.empoweringMessage = self.empoweringMessages.randomElement() ?? "🎉 Great job on this commit!"
                     self.isGeneratingMessage = false
                 }
             } else {
                 await MainActor.run {
                     self.prData = nil
                     self.commitMessage = "Failed to generate the message."
+                    self.empoweringMessage = ""
                     self.isGeneratingMessage = false
                 }
             }

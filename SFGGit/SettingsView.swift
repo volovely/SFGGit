@@ -9,10 +9,12 @@ import SwiftUI
 
 struct SettingsView: View {
     @State private var repositoryPath = ""
+    @State private var sshKeyPath = ""
     @State private var claudeAPIKey = ""
     @State private var isEnabled = true
 
     @State private var originalRepositoryPath = ""
+    @State private var originalSshKeyPath = ""
     @State private var originalClaudeAPIKey = ""
     @State private var originalIsEnabled = true
 
@@ -34,6 +36,19 @@ struct SettingsView: View {
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                             Button("Browse...") {
                                 selectRepositoryFolder()
+                            }
+                            .buttonStyle(BorderedButtonStyle())
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("SSH Key Path:")
+                            .fontWeight(.medium)
+                        HStack {
+                            TextField("Select SSH key file", text: $sshKeyPath)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            Button("Browse...") {
+                                selectSSHKeyFile()
                             }
                             .buttonStyle(BorderedButtonStyle())
                         }
@@ -97,20 +112,24 @@ struct SettingsView: View {
 
     private func loadSettings() {
         repositoryPath = UserDefaults.standard.string(forKey: "repositoryPath") ?? ""
+        sshKeyPath = UserDefaults.standard.string(forKey: "sshKeyPath") ?? ""
         claudeAPIKey = UserDefaults.standard.string(forKey: "claudeAPIKey") ?? ""
         isEnabled = UserDefaults.standard.bool(forKey: "isEnabled")
 
         originalRepositoryPath = repositoryPath
+        originalSshKeyPath = sshKeyPath
         originalClaudeAPIKey = claudeAPIKey
         originalIsEnabled = isEnabled
     }
 
     private func saveSettings() {
         UserDefaults.standard.set(repositoryPath, forKey: "repositoryPath")
+        UserDefaults.standard.set(sshKeyPath, forKey: "sshKeyPath")
         UserDefaults.standard.set(claudeAPIKey, forKey: "claudeAPIKey")
         UserDefaults.standard.set(isEnabled, forKey: "isEnabled")
 
         originalRepositoryPath = repositoryPath
+        originalSshKeyPath = sshKeyPath
         originalClaudeAPIKey = claudeAPIKey
         originalIsEnabled = isEnabled
 
@@ -119,6 +138,7 @@ struct SettingsView: View {
 
     private func cancelChanges() {
         repositoryPath = originalRepositoryPath
+        sshKeyPath = originalSshKeyPath
         claudeAPIKey = originalClaudeAPIKey
         isEnabled = originalIsEnabled
 
@@ -137,6 +157,22 @@ struct SettingsView: View {
         if openPanel.runModal() == .OK {
             if let url = openPanel.url {
                 repositoryPath = url.path
+            }
+        }
+    }
+
+    private func selectSSHKeyFile() {
+        let openPanel = NSOpenPanel()
+        openPanel.title = "Select SSH Key File"
+        openPanel.showsResizeIndicator = true
+        openPanel.showsHiddenFiles = true
+        openPanel.allowsMultipleSelection = false
+        openPanel.canChooseDirectories = false
+        openPanel.canChooseFiles = true
+
+        if openPanel.runModal() == .OK {
+            if let url = openPanel.url {
+                sshKeyPath = url.path
             }
         }
     }

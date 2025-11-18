@@ -49,7 +49,7 @@ class ClaudeClient: ObservableObject {
             return nil
         }
         
-        if diff.count > 1000 {
+        if diff.count > 5000 {
             diff = String(diff.prefix(1000))
         }
 

@@ -12,6 +12,10 @@ class GitClient: ObservableObject {
     private var repositoryPath: String {
         return UserDefaults.standard.string(forKey: "repositoryPath") ?? ""
     }
+    
+    private var sshKeyPath: String {
+        return UserDefaults.standard.string(forKey: "sshKeyPath") ?? ""
+    }
 
     func getDiff() -> String? {
         guard !repositoryPath.isEmpty else {
@@ -21,7 +25,7 @@ class GitClient: ObservableObject {
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        process.arguments = ["diff", "--staged"]
+        process.arguments = ["diff",]
         process.currentDirectoryURL = URL(fileURLWithPath: repositoryPath)
 
         let outputPipe = Pipe()
@@ -89,11 +93,17 @@ class GitClient: ObservableObject {
             return false
         }
 
+        guard !sshKeyPath.isEmpty else {
+            print("SSH key path not configured")
+            return false
+        }
+        
         // First commit the changes
         let commitProcess = Process()
         commitProcess.executableURL = URL(fileURLWithPath: "/usr/bin/git")
         commitProcess.arguments = ["commit", "-m", title, "-m", message]
         commitProcess.currentDirectoryURL = URL(fileURLWithPath: repositoryPath)
+
 
         let commitErrorPipe = Pipe()
         commitProcess.standardError = commitErrorPipe
@@ -118,8 +128,10 @@ class GitClient: ObservableObject {
         // Then push to remote
         let pushProcess = Process()
         pushProcess.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        pushProcess.arguments = ["push"]
+        pushProcess.arguments = ["push", "origin"]
         pushProcess.currentDirectoryURL = URL(fileURLWithPath: repositoryPath)
+        var environment = ProcessInfo.processInfo.environment
+        environment["GIT_SSH_COMMAND"] = "ssh -i \(sshKeyPath) -o IdentitiesOnly=yes"
 
         let pushErrorPipe = Pipe()
         pushProcess.standardError = pushErrorPipe
